@@ -1,103 +1,86 @@
-### 1. Demircioğlu A (2024)
-**제목:** Evaluation of the performance of oversampling techniques in 
-         class imbalance problems
-**저널:** Scientific Reports 14:15744
-**DOI:** 10.1038/s41598-024-66477-w
+# GSE39833 — CRC classification from serum exosomal miRNA
 
-**핵심 발견:**
-"Applying oversampling before CV leads to large positive bias in AUC 
-of up to 0.34, which is proportional to class imbalance."
+Nested cross-validation with fold-internal feature selection on the serum
+exosomal miRNA microarray **GSE39833** (11 healthy controls, 88 colorectal
+cancer patients, 15,739 probes).
 
-**코드 적용:**
-- Cell 2, Line 83-87: SMOTE 제거 및 class_weight 사용 근거
-- model_configs에서 모든 SMOTE 옵션 제거
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Jay99Sohn/GEOexosome/blob/main/GEOexosome.ipynb)
 
-**인용 문장 (Methods용):**
-"Given the severe class imbalance (11 vs 88) and limited minority samples,
-we opted for class weighting over SMOTE to avoid potential bias 
-(Demircioğlu, 2024)."
+> Analysis performed November–December 2025 for a CHA University research
+> poster (first prize, November 2025). Pipeline refactored and re-run in
+> August 2026; commit dates reflect publication, not when the work was done.
 
----
+## Method
 
-### 2. Liu Y et al. (2025)
-**제목:** Benchmarking feature selection stability in high-dimensional 
-         small-sample data
-**저널:** Computer Methods and Programs in Biomedicine 248:108107
-**DOI:** 10.1016/j.cmpb.2024.108107
+- **Imbalance:** `class_weight='balanced'` instead of SMOTE. Oversampling before
+  cross-validation inflates AUC, and with 11 minority samples the SMOTE
+  neighbourhood is not well defined (Demircioğlu 2024, *Sci Rep* 14:15744).
+- **Feature selection, inside each training fold only:** differential-expression
+  filter (|log2FC|, Benjamini–Hochberg FDR) → LASSO, SVM-RFE and random-forest
+  importance → probes selected by ≥ 2 of the 3.
+- **Evaluation:** 5-fold × 10 independent repeats. Specificity is reported with
+  its spread, since one control is 9.1 percentage points.
+- **Preprocessing:** `VALUE` is background-subtracted intensity and contains
+  negative entries. These are floored at zero before `log2(x+1)` rather than
+  allowed to become `NaN`, which would silently drop the affected probes.
 
-**핵심 발견:**
-"Kuncheva stability index of 0.50-0.75 is realistic for challenging 
-HDSS datasets; values >0.80 achievable with proper ensemble approaches."
+## Results
 
-**코드 적용:**
-- Cell 2: STABILITY_THRESHOLD = 0.70 (기존 0.80에서 하향)
-- Cell 2: calculate_kuncheva_index() 함수 추가
+| Model | AUC (10 repeats) | Sensitivity | Specificity |
+|---|---|---|---|
+| SVM | 0.9974 ± 0.0028 | 0.994 | 0.873 (0.73–1.00) |
+| Logistic regression | 0.9966 ± 0.0036 | 0.985 | 0.955 (0.91–1.00) |
+| Random forest | 0.9965 ± 0.0040 | 0.998 | 0.736 (0.55–0.91) |
 
-**인용 문장 (Methods용):**
-"Feature stability was assessed using the Kuncheva index, with a 
-threshold of 70% selection frequency considered stable based on 
-benchmarks for high-dimensional small-sample data (Liu et al., 2025)."
+13 probes were selected in ≥ 70 % of the 50 folds, corresponding to 9 distinct
+annotations.
 
----
+## Interpretation and open problems
 
-### 3. Lewis MJ et al. (2023)
-**제목:** nestedcv: an R package for fast implementation of nested 
-         cross-validation with embedded feature selection
-**저널:** Bioinformatics Advances 3(1):vbad048
-**DOI:** 10.1093/bioadv/vbad048
+**These AUCs are almost certainly optimistic and should not be read as
+diagnostic performance.** Two observations argue against a purely biological
+explanation:
 
-**핵심 발견:**
-"The final model is determined by following the same steps applied to 
-the outer training folds, but this time applied to the whole dataset."
+1. **A herpes simplex virus 1 probe (`hsv1-miR-H6-3p`) is among the most
+   frequently selected features** (86 % of folds). A viral probe should not
+   discriminate colorectal cancer from healthy serum on biological grounds.
+2. **`hsa-miR-1825` is also selected** (76 % of folds). This probe has been
+   reclassified as a tRNA fragment rather than a genuine miRNA.
 
-**코드 적용:**
-- Cell 2, STEP 6: 이중 경로(Dual-Path) Feature Selection
-  - PATH A: 전체 데이터 재훈련 (외부 검증용)
-  - PATH B: CV-stable features (바이오마커 보고용)
+Together these suggest the classifier is partly separating a **technical or
+batch difference** between the control and case samples rather than disease
+biology. GEO series frequently process controls and cases in separate batches.
+Confirming or excluding this requires the array scan dates and batch metadata,
+which are not resolved here.
 
-**인용 문장 (Methods용):**
-"Following the dual-path strategy (Lewis et al., 2023), we reported 
-CV-stable features (≥70% selection) as candidate biomarkers while 
-using full-data-retrained model for external validation."
+Other limitations:
 
----
+- 11 healthy controls only; specificity moves in steps of 9.1 points.
+- The `±` on AUC is between-repeat variation, not sampling uncertainty for a
+  new cohort.
+- 4 of the 13 stable probes measure the same miRNA (`hsa-miR-654-5p`), and 2
+  have no annotation, so the panel is 9 distinct features, not 13.
+- Single cohort, single platform, no external validation.
 
-### 4. Parvandeh S et al. (2020)
-**제목:** Consensus features nested cross-validation
-**저널:** Bioinformatics 36(10):3093-3098
-**DOI:** 10.1093/bioinformatics/btaa046
+The selected probes are **candidate biomarkers pending batch-effect
+adjudication**, not a validated diagnostic panel.
 
-**핵심 발견:**
-"Standard nested CV tends to include too many features (avg 253 vs 
-50 true functional). Consensus-based selection across folds 
-significantly reduces false positives."
+## Repository layout
 
-**코드 적용:**
-- Cell 2: CV-stable features 개념 (≥70% of folds)
-- Cell 2: cv_stable_biomarkers_{model}.csv 생성
+| Path | Contents |
+|---|---|
+| `GEOexosome.ipynb` | Full pipeline, six cells, outputs included |
+| `docs/references.md` | Methodological references and how each was applied |
 
-**인용 문장 (Methods용):**
-"To identify robust biomarkers, we applied consensus feature selection 
-requiring features to be selected in ≥70% of cross-validation 
-iterations (Parvandeh et al., 2020)."
+The notebook checkpoints each cell to Drive, so an interrupted run continues
+where it stopped. Delete `checkpoints/` to recompute from scratch.
 
----
+Earlier revisions are in the commit history; `45d8fe5` (2025-11-15) is the
+version submitted with the poster, which used SMOTE and single-pass ANOVA
+feature selection.
 
-### 5. Varma S & Simon R (2006)
-**제목:** Bias in error estimation when using cross-validation for 
-         model selection
-**저널:** BMC Bioinformatics 7:91
-**DOI:** 10.1186/1471-2105-7-91
+## Requirements
 
-**핵심 발견:**
-"Using CV to compute an error estimate for a classifier that has been 
-tuned by CV gives a significantly biased estimate of the true error."
-
-**코드 적용:**
-- 전체 Nested CV 구조 설계의 이론적 근거
-- Feature selection이 각 outer fold 내부에서만 수행
-
-**인용 문장 (Methods용):**
-"We employed nested cross-validation to obtain unbiased performance 
-estimates while incorporating feature selection within each fold 
-(Varma & Simon, 2006)."
+Python 3 with `GEOparse`, `scikit-learn`, `scipy`, `pandas`, `shap`,
+`matplotlib`. Cell 1 installs the two non-default packages. Raw data is
+downloaded from GEO at run time; no local files are needed.
