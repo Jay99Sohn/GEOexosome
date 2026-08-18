@@ -9,6 +9,14 @@ cancer patients, 15,739 probes).
 > Analysis performed November–December 2025 for a CHA University research
 > poster (first prize, November 2025). Pipeline refactored and re-run in
 > August 2026; commit dates reflect publication, not when the work was done.
+> Commit `45d8fe5` (2025-11-15) is the version submitted with the poster.
+
+## Headline
+
+The refactored pipeline reaches a cross-validated AUC of **0.997**. That number
+should not be used. **Sample accession order is perfectly confounded with the
+class label**, so the classifier cannot be shown to be separating disease from
+run batch. Details in [Confounding](#confounding).
 
 ## Method
 
@@ -35,48 +43,55 @@ cancer patients, 15,739 probes).
 13 probes were selected in ≥ 70 % of the 50 folds, corresponding to 9 distinct
 annotations.
 
-## Interpretation and open problems
+## Confounding
 
-**These AUCs are almost certainly optimistic and should not be read as
-diagnostic performance.** Two observations argue against a purely biological
-explanation:
+Removing SMOTE — a technique that *inflates* AUC — raised AUC from 0.96 to
+0.997. That is the wrong direction, and it prompted the following checks.
 
-1. **A herpes simplex virus 1 probe (`hsv1-miR-H6-3p`) is among the most
-   frequently selected features** (86 % of folds). A viral probe should not
-   discriminate colorectal cancer from healthy serum on biological grounds.
-2. **`hsa-miR-1825` is also selected** (76 % of folds). This probe has been
-   reclassified as a tRNA fragment rather than a genuine miRNA.
+**1. Accession order.** The 11 controls are `GSM980024`–`GSM980034` and the 88
+cases are `GSM980035`–`GSM980122`: two disjoint, contiguous blocks with no
+interleaving. A Wald–Wolfowitz runs test gives 2 blocks against ~21 expected
+under random ordering (p = 0.0001).
 
-Together these suggest the classifier is partly separating a **technical or
-batch difference** between the control and case samples rather than disease
-biology. GEO series frequently process controls and cases in separate batches.
-Confirming or excluding this requires the array scan dates and batch metadata,
-which are not resolved here.
+```
+label sequence in accession order (C = control)
+CCCCCCCCCCC........................................................................................
+```
 
-Other limitations:
+**2. Implausible features.** Among the most frequently selected probes:
+
+- `hsv1-miR-H6-3p` — a **herpes simplex virus 1** miRNA, selected in 86 % of
+  folds. There is no biological reason for a viral probe to discriminate
+  colorectal cancer from healthy serum.
+- `hsa-miR-1825` — selected in 76 % of folds; reclassified as a tRNA fragment
+  rather than a genuine miRNA.
+
+**Conclusion.** Run order and class label are perfectly aligned in this series,
+so no analysis of GSE39833 alone can attribute the signal to disease rather than
+to batch. This is a property of the dataset, not of the pipeline. Accession
+clustering does not by itself prove that samples were processed in separate
+batches — submitters sometimes deposit all controls first — but it removes any
+basis for excluding it, and the two implausible probes point the same way.
+Resolving it requires hybridisation or scan dates, which this series does not
+report.
+
+The selected probes are therefore **not reported as candidate biomarkers**. The
+value of this repository is the pipeline and the confounding analysis.
+
+## Other limitations
 
 - 11 healthy controls only; specificity moves in steps of 9.1 points.
 - The `±` on AUC is between-repeat variation, not sampling uncertainty for a
   new cohort.
-- 4 of the 13 stable probes measure the same miRNA (`hsa-miR-654-5p`), and 2
-  have no annotation, so the panel is 9 distinct features, not 13.
+- 4 of the 13 stable probes measure the same miRNA (`hsa-miR-654-5p`) and 2 have
+  no annotation, so the panel is 9 distinct features, not 13.
 - Single cohort, single platform, no external validation.
-
-The selected probes are **candidate biomarkers pending batch-effect
-adjudication**, not a validated diagnostic panel.
 
 ## Repository layout
 
-| Path | Contents |
-|---|---|
-| `GEOexosome.ipynb` | Full pipeline, six cells, outputs included |
-
-The notebook checkpoints each cell to Drive, so an interrupted run continues
-where it stopped. Delete `checkpoints/` to recompute from scratch.
-
-Earlier revisions are in the commit history; `45d8fe5` (2025-11-15) is the
-version submitted with the poster, which used SMOTE and single-pass ANOVA
-feature selection.
+`GEOexosome.ipynb` — full pipeline in six cells, outputs included. Each cell
+checkpoints to Drive, so an interrupted run continues where it stopped. Delete
+`checkpoints/` to recompute from scratch.
 
 ## Requirements
 
