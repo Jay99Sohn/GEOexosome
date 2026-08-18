@@ -70,7 +70,6 @@ adjudication**, not a validated diagnostic panel.
 | Path | Contents |
 |---|---|
 | `GEOexosome.ipynb` | Full pipeline, six cells, outputs included |
-| `docs/references.md` | Methodological references and how each was applied |
 
 The notebook checkpoints each cell to Drive, so an interrupted run continues
 where it stopped. Delete `checkpoints/` to recompute from scratch.
