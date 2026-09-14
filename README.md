@@ -6,17 +6,18 @@ cancer patients, 15,739 probes).
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Jay99Sohn/GEOexosome/blob/main/GEOexosome.ipynb)
 
-> Analysis performed November–December 2025 for a CHA University research
-> poster (first prize, November 2025). Pipeline refactored and re-run in
-> August 2026; commit dates reflect publication, not when the work was done.
-> Commit `45d8fe5` (2025-11-15) is the version submitted with the poster.
+> Commit `45d8fe5` (2025-11-15) is the version submitted with the CHA University
+> research poster that won first prize in November 2025. It selected features by
+> ANOVA, handled imbalance with SMOTE, and reached a nested-CV AUC of 0.96. The
+> analysis below rebuilds that pipeline and reports what a check on sample
+> ordering then found.
 
-## Headline
+## Result
 
-The refactored pipeline reaches a cross-validated AUC of **0.997**. That number
-should not be used. **Sample accession order is perfectly confounded with the
-class label**, so the classifier cannot be shown to be separating disease from
-run batch. Details in [Confounding](#confounding).
+The pipeline reaches a cross-validated AUC of **0.997**. That number should not
+be used. **Sample accession order is perfectly confounded with the class label**,
+so the classifier cannot be shown to be separating disease from run batch.
+Details in [Run-order confounding](#run-order-confounding).
 
 ## Method
 
@@ -32,7 +33,7 @@ run batch. Details in [Confounding](#confounding).
   negative entries. These are floored at zero before `log2(x+1)` rather than
   allowed to become `NaN`, which would silently drop the affected probes.
 
-## Results
+## Performance
 
 | Model | AUC (10 repeats) | Sensitivity | Specificity |
 |---|---|---|---|
@@ -40,18 +41,21 @@ run batch. Details in [Confounding](#confounding).
 | Logistic regression | 0.9966 ± 0.0036 | 0.985 | 0.955 (0.91–1.00) |
 | Random forest | 0.9965 ± 0.0040 | 0.998 | 0.736 (0.55–0.91) |
 
-13 probes were selected in ≥ 70 % of the 50 folds, corresponding to 9 distinct
-annotations.
+13 probes were selected in ≥ 70 % of the 50 folds, corresponding to 8 distinct
+miRNAs plus 2 unannotated probes.
 
-## Confounding
+## Run-order confounding
 
-Removing SMOTE — a technique that *inflates* AUC — raised AUC from 0.96 to
-0.997. That is the wrong direction, and it prompted the following checks.
+Dropping SMOTE — a technique that *inflates* AUC — raised AUC from 0.96 in the
+poster version to 0.997. That is the wrong direction, and it prompted the
+following checks.
 
 **1. Accession order.** The 11 controls are `GSM980024`–`GSM980034` and the 88
 cases are `GSM980035`–`GSM980122`: two disjoint, contiguous blocks with no
-interleaving. A Wald–Wolfowitz runs test gives 2 blocks against ~21 expected
-under random ordering (p = 0.0001).
+interleaving. A Wald–Wolfowitz runs test gives 2 runs against 20.6 expected
+under random ordering. Only two of the C(99, 11) possible arrangements are this
+separated, so the exact probability is **P = 1.6 × 10⁻¹⁴** — reported in place of
+the normal approximation, which is unreliable this far into the tail.
 
 ```
 label sequence in accession order (C = control)
@@ -84,14 +88,25 @@ value of this repository is the pipeline and the confounding analysis.
 - The `±` on AUC is between-repeat variation, not sampling uncertainty for a
   new cohort.
 - 4 of the 13 stable probes measure the same miRNA (`hsa-miR-654-5p`) and 2 have
-  no annotation, so the panel is 9 distinct features, not 13.
+  no annotation, so the panel is 10 distinct features, not 13.
 - Single cohort, single platform, no external validation.
 
 ## Repository layout
 
-`GEOexosome.ipynb` — full pipeline in six cells, outputs included. Each cell
-checkpoints to Drive, so an interrupted run continues where it stopped. Delete
-`checkpoints/` to recompute from scratch.
+`GEOexosome.ipynb` — full pipeline in seven cells, outputs included.
+
+| Cell | Contents | Checkpoint |
+|---|---|---|
+| 1 | Environment, parameters, checkpoint I/O | — |
+| 2 | Data loading, labels, QC, log2 transform | `data` |
+| 3 | Nested cross-validation | `cv_state`, `fs_cache` |
+| 4 | Performance summary, feature stability | `cv`, `stability` |
+| 5 | SHAP attribution | `shap` |
+| 6 | Accession order against class label | `order` |
+| 7 | Summary report | — |
+
+Each cell checkpoints to Drive, so an interrupted run continues where it
+stopped. Delete `checkpoints/` to recompute from scratch.
 
 ## Requirements
 
