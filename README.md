@@ -113,3 +113,7 @@ stopped. Delete `checkpoints/` to recompute from scratch.
 Python 3 with `GEOparse`, `scikit-learn`, `scipy`, `pandas`, `shap`,
 `matplotlib`. Cell 1 installs the two non-default packages. Raw data is
 downloaded from GEO at run time; no local files are needed.
+
+## License
+
+All rights reserved. See [`LICENSE`](LICENSE).
